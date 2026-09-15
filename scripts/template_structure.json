@@ -1,0 +1,270 @@
+{
+  "paragraphs": [
+    {
+      "text": "QA UNDERSTANDING DOCUMENT",
+      "style": "Normal"
+    },
+    {
+      "text": "Custom Forecast \u2014 Max Read Date",
+      "style": "Normal"
+    },
+    {
+      "text": "POST /pod-forecast-batch-results   \u00b7   X-Host: pod-forecast-result",
+      "style": "Normal"
+    },
+    {
+      "text": "Field under test: max_read_date (returned in the API as maxReadDate)",
+      "style": "Normal"
+    },
+    {
+      "text": "Work Item: #643243 \u2014 Custom Forecast support (previously out of scope in the main Forecast API max_read_date PBI)",
+      "style": "Normal"
+    },
+    {
+      "text": "Source: therm-integration.md + PBI Acceptance Criteria (AC1\u2013AC2)",
+      "style": "Normal"
+    },
+    {
+      "text": "1. User Story",
+      "style": "Heading 1"
+    },
+    {
+      "text": "As a consumer of Forecast APIs, I want the Forecast API to return the correct max_read_date for PODs whose selected/best forecast is a Custom Forecast, so that I can validate the freshness of the underlying data even when no meter-read table (Scalar/IDR/Day Match) applies.",
+      "style": "Normal"
+    },
+    {
+      "text": "2. Acceptance Criteria \u2192 QA Interpretation",
+      "style": "Heading 1"
+    },
+    {
+      "text": "AC1 \u2014 Use Custom Forecast Upload Date as Max Read Date",
+      "style": "Heading 2"
+    },
+    {
+      "text": "Given a POD has a Custom Forecast selected, and the Custom Forecast does not have an associated HU, when the forecast response is triggered, then the Custom Forecast upload date/time shall be used as the Max Read Date.",
+      "style": "Normal"
+    },
+    {
+      "text": "QA interpretation: For PODs where the selected forecast is Custom AND no HU (historical usage) is associated with it, maxReadDate is not sourced from pod_scalar_meterread_clean or the interval table at all \u2014 it comes from the Custom Forecast's own upload date/time. ",
+      "style": "Normal"
+    },
+    {
+      "text": "AC2 \u2014 Send Upload Timestamp in Response",
+      "style": "Heading 2"
+    },
+    {
+      "text": "Given a Custom Forecast is identified as the Best Forecast for a POD, when the outbound payload is created, then the uploaded timestamp of the Custom Forecast shall be populated in the Max Read Date field.",
+      "style": "Normal"
+    },
+    {
+      "text": "QA interpretation: Contract-level check \u2014 when a Custom Forecast is is_best for a POD, the response's maxReadDate field must carry the upload timestamp. ",
+      "style": "Normal"
+    },
+    {
+      "text": "3. Business Rule \u2192 Data Source Mapping",
+      "style": "Heading 1"
+    },
+    {
+      "text": "4. Endpoint Contract \u2014 POST /pod-forecast-batch-results (X-Host: pod-forecast-result)",
+      "style": "Heading 1"
+    },
+    {
+      "text": "Source: therm-integration.md, \u201cAPI Endpoints \u2192 2. POST /pod-forecast-batch-results\u201d and \u201cX-Host: pod-forecast-result \u2192 Forecast Data\u201d.",
+      "style": "Normal"
+    },
+    {
+      "text": "Headers",
+      "style": "Heading 3"
+    },
+    {
+      "text": "Request body \u2014 PodForecastBatchRequest",
+      "style": "Heading 3"
+    },
+    {
+      "text": "{ \"pods\": [{ \"pod\": \"1234567890\", \"dc\": \"CNP\", \"duns\": \"123456789\", \"company\": \"NRG Energy\" }],",
+      "style": "Normal"
+    },
+    {
+      "text": "  \"startdate\": \"01/01/2026\", \"enddate\": \"12/31/2026\", \"return_meterload\": true }",
+      "style": "Normal"
+    },
+    {
+      "text": "Success response (200) \u2014 Forecast Data",
+      "style": "Heading 3"
+    },
+    {
+      "text": "{ \"status\": \"success\", \"message\": \"Data retrieved successfully\",",
+      "style": "Normal"
+    },
+    {
+      "text": "  \"data\": [{ \"pod\": \"1234567890\", \"dc\": \"CNP\", \"createDate\": \"2026-07-07T12:34:56.789Z\",",
+      "style": "Normal"
+    },
+    {
+      "text": "    \"score\": 0.95, \"mape\": 5.2, \"nrmse\": 0.12, \"weatherSensitive\": true,",
+      "style": "Normal"
+    },
+    {
+      "text": "    \"annualUsageEstimate\": 123456.78, \"vintageExpirationDays\": 365,",
+      "style": "Normal"
+    },
+    {
+      "text": "    \"validationStatus\": \"APPROVED\", \"maxReadDate\": \"2026-06-30\",",
+      "style": "Normal"
+    },
+    {
+      "text": "    \"hourlyUsage\": { \"starts\": \"2026-01-01\", \"ends\": \"2026-12-31\", \"values\": [\"0.123\",\"0.234\"] } }] }",
+      "style": "Normal"
+    },
+    {
+      "text": "maxReadDate \u2014 for Custom Forecast PODs, this field is sourced per AC1/AC2 above (Custom Forecast upload date/time) instead of pod_scalar_meterread_clean / pod_intervalclean.",
+      "style": "Normal"
+    },
+    {
+      "text": "Data processing (from therm-integration.md)",
+      "style": "Heading 3"
+    },
+    {
+      "text": "get_batch_results() is called with result_format: \"podload\"",
+      "style": "List Paragraph"
+    },
+    {
+      "text": "pod_vintage and pod_status are fetched in parallel",
+      "style": "List Paragraph"
+    },
+    {
+      "text": "Max read dates are fetched from pod_scalar_meterread_clean and pod_intervalclean \u2014 for Custom Forecast PODs (per AC1), this step must instead resolve to the Custom Forecast's own upload date/time when no HU is associated",
+      "style": "List Paragraph"
+    },
+    {
+      "text": "Forecast source: reads from GCS Parquet files via get_batch_results(), using the best forecast (is_best=true) from the forecast_association table",
+      "style": "List Paragraph"
+    },
+    {
+      "text": "Error responses (shared across X-Host values)",
+      "style": "Heading 3"
+    }
+  ],
+  "tables": [
+    [
+      [
+        "Condition",
+        "Source for max_read_date",
+        "AC"
+      ],
+      [
+        "Custom Forecast selected, no associated HU",
+        "Custom Forecast upload date/time",
+        "AC1"
+      ],
+      [
+        "Custom Forecast is Best Forecast for the POD",
+        "Upload timestamp populated into maxReadDate on the outbound payload",
+        "AC2"
+      ],
+      [
+        "Custom Forecast selected, HU IS associated",
+        "Undefined \u2014 not covered by AC1/AC2 as written",
+        "See Q1"
+      ]
+    ],
+    [
+      [
+        "Header",
+        "Required",
+        "Notes"
+      ],
+      [
+        "X-Exchange-Key",
+        "Yes",
+        "Static exchange key (env.therm_exchange_key). Despite the header name, this endpoint validates against the STATIC key, NOT the signed key returned by /generate-token \u2014 the signed key is only used by /usage-request."
+      ],
+      [
+        "X-Host",
+        "Yes",
+        "pod-forecast-result for this scenario (routing selector; also accepts pod and pod-hu)"
+      ]
+    ],
+    [
+      [
+        "Field",
+        "Required",
+        "Notes"
+      ],
+      [
+        "pods",
+        "Yes",
+        "List[PodRequest], minimum 1; de-duplicated by serialized JSON before processing"
+      ],
+      [
+        "startdate / enddate",
+        "No",
+        "MM/DD/YYYY (or with time); enddate must be >= startdate if both given; partial ranges allowed"
+      ],
+      [
+        "return_meterload",
+        "No",
+        "Default false; controls whether hourlyUsage is populated"
+      ],
+      [
+        "POD.pod",
+        "Yes",
+        "Cannot be empty or whitespace-only"
+      ],
+      [
+        "POD.dc / POD.duns",
+        "Yes (either)",
+        "Either dc OR duns required; dc normalized to uppercase and validated against the dc table"
+      ]
+    ],
+    [
+      [
+        "Status",
+        "Trigger",
+        "Message"
+      ],
+      [
+        "401",
+        "Invalid/missing X-Exchange-Key",
+        "\u201cInvalid X-Exchange-Key header\u201d"
+      ],
+      [
+        "400",
+        "Empty pods list",
+        "\u201cPods list cannot be empty\u201d"
+      ],
+      [
+        "400",
+        "Empty/whitespace POD",
+        "\u201cPlease enter valid pod number\u201d"
+      ],
+      [
+        "400",
+        "Missing dc/duns",
+        "\u201cDC is missing for POD(s): [...]\u201d"
+      ],
+      [
+        "400",
+        "Unknown dc/duns",
+        "\u201cInvalid DC(s) / Invalid DUNS(s): [...]\u201d"
+      ],
+      [
+        "400",
+        "Invalid X-Host",
+        "\u201cInvalid host value: {X_Host}\u201d"
+      ],
+      [
+        "400",
+        "enddate < startdate",
+        "\u201c'enddate' must be greater than or equal to 'startdate'\u201d"
+      ],
+      [
+        "404",
+        "No data found",
+        "\u201cData not found\u201d"
+      ]
+    ]
+  ],
+  "num_paragraphs": 36,
+  "num_tables": 4
+}

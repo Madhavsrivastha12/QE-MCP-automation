@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@azure-devops/mcp",
+        "digital-it-apps"
+      ],
+      "env": {
+        "AZURE_DEVOPS_PAT": "${AZURE_DEVOPS_PAT}",
+        "ADO_DEFAULT_PROJECT": "NRG-Business-CI"
+      }
+    },
+    "usage-empire-dev": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "c:\\UE_Automation\\usage-empire\\ue-api",
+        "run",
+        "src/mcp/server.py",
+        "--env",
+        "env/dev.yml"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "c:\\UE_Automation\\usage-empire\\.nrg\\keys\\dev.json"
+      }
+    },
+    "postgres": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "c:\\UE_Automation\\usage-empire\\ue-api",
+        "run",
+        "src/mcp/run_postgres_mcp.py",
+        "--env",
+        "env/dev.yml"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "c:\\UE_Automation\\usage-empire\\.nrg\\keys\\dev.json",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(node_modules/**)",
+      "Read(**/.venv/**)",
+      "Read(**/__pycache__/**)",
+      "Read(**/dist/**)",
+      "Read(**/build/**)",
+      "Read(**/htmlcov/**)",
+      "Read(**/*.egg-info/**)",
+      "Read(.pytest_cache/**)",
+      "Read(coverage/**)",
+      "Read(**/alembic/versions/**)",
+      "Read(**/*.lock)",
+      "Read(**/*.log)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(ado-pipeline/**)",
+      "Read(**/env/prod.yml)",
+      "Read(sqlcode/prod/**)",
+      "Read(**/*.pyc)",
+      "Read(**/*.pyo)",
+      "Read(**/*.pyd)",
+      "Read(**/*.min.js)",
+      "Read(**/*.min.css)",
+      "Read(**/*.map)",
+      "Read(**/*.csv)",
+      "Read(**/*.parquet)",
+      "Read(**/*.xlsx)",
+      "Read(**/*.xls)",
+      "Read(.git/**)",
+      "Read(**/.DS_Store)",
+      "Read(**/Thumbs.db)",
+      "Read(**/tmp/**)",
+      "Read(**/temp/**)",
+      "Read(**/*.tmp)",
+      "Read(**/*.db)",
+      "Read(**/*.sqlite)",
+      "Read(**/*.sqlite3)"
+    ]
+  }
+}

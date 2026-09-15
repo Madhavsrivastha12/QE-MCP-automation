@@ -1,0 +1,102 @@
+{
+  "mcpServers": {
+    "usage-empire-dev": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "ue-api",
+        "run",
+        "src/mcp/server.py",
+        "--env",
+        "env/dev.yml"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "../.nrg/keys/dev.json"
+      }
+    },
+    "usage-empire-qa": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "ue-api",
+        "run",
+        "src/mcp/server.py",
+        "--env",
+        "env/qa.yml"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "../.nrg/keys/qa.json"
+      }
+    },
+    "usage-empire-uat": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "ue-api",
+        "run",
+        "src/mcp/server.py",
+        "--env",
+        "env/uat.yml"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "../.nrg/keys/uat.json"
+      }
+    },
+    "usage-empire-prod": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "ue-api",
+        "run",
+        "src/mcp/server.py",
+        "--env",
+        "env/prod.yml"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "../.nrg/keys/prod.json"
+      }
+    },
+    "azure-devops": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@azure-devops/mcp",
+        "digital-it-apps"
+      ],
+      "env": {
+        "AZURE_DEVOPS_PAT": "${AZURE_DEVOPS_PAT}",
+        "ADO_DEFAULT_PROJECT": "NRG-Business-CI"
+      }
+    },
+    "postgres": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "ue-api",
+        "run",
+        "src/mcp/run_postgres_mcp.py",
+        "--env",
+        "env/dev.yml"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "../.nrg/keys/dev.json",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    },
+    "postgres-qa": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "ue-api",
+        "run",
+        "src/mcp/run_postgres_mcp.py",
+        "--env",
+        "env/qa.yml"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "../.nrg/keys/qa.json",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    }
+  }
+}

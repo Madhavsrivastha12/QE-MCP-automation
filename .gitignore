@@ -1,0 +1,74 @@
+# Environment variables
+.env
+.env.local
+
+# Outputs (generated artifacts)
+# Every PBI run writes to outputs/<PBI>/{deliverables,working,logs}/
+outputs/
+*.xlsx
+*.xls
+
+# Office lock/owner files left behind by an open Word/Excel document
+~$*
+
+# Node.js dependencies
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+tmp/
+temp/
+
+# Claude Code
+.claude/todo.json
+.claude/settings.local.json
+
+# Historical artifacts (not needed for project functionality)
+archive/
+
+# Temporary generated scripts in root
+/generate_test_scenarios.py
+/verify_excel.py

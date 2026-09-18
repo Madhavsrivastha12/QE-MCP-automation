@@ -71,15 +71,30 @@ This project automates the QA testing workflow by:
 @qa-workflow-orchestrator 643243
 ```
 
-**What Happens**:
-1. Fetches PBI from Azure DevOps → `pbi-data.json`
-2. Reads integration documentation → `integration-docs.json`
-3. Creates QA Understanding Document → `QA_Understanding_Document.docx` (Professional Word format)
+**What Happens** (Document-Driven Approach):
+1. **Phase 1**: Fetches PBI from Azure DevOps → `pbi-data.json`
+2. **Phase 2**: Reads user-provided integration documentation → `integration-docs.json`
+3. **Phase 3**: Creates QA Understanding Document → `QA_Understanding_Document.docx` (Professional Word format)
 4. **[CHECKPOINT 1]** - User reviews QA doc (Approve/Request Changes/Cancel)
-5. Maps test scenarios to AC → `Test-Scenarios-Mapped-to-AC.xlsx`
+5. **Phase 4**: Maps test scenarios to AC → `Test-Scenarios-Mapped-to-AC.xlsx`
 6. **[CHECKPOINT 2]** - User reviews scenarios (Approve/Add More/Cancel)
-7. Generates test cases → `Test_Cases_PBI_<PBI>.xlsx` (Azure DevOps import-ready)
-8. Creates workflow summary → `logs/00-WORKFLOW-SUMMARY.md`
+7. **Phase 5**: Generates test cases → `Test_Cases_PBI_<PBI>.xlsx` (Azure DevOps import-ready)
+8. **Phase 6**: Generates test data → `test-data/` (API payloads, sample files, credentials) ⭐ NEW
+9. **Phase 7**: Quality review of test cases → `test-case-review.md` ⭐ NEW
+10. **[CHECKPOINT 3]** - Choose execution mode (Stop Here / Continue / Cancel) ⭐ NEW
+
+**If you choose "Stop Here"** (Original Behavior):
+- Workflow completes after Phase 7
+- Manual QA execution with generated test cases
+- Summary report created
+
+**If you choose "Continue"** (Full Lifecycle - NEW):
+11. **Phase 8**: Environment validation → `environment-validation.md` ⭐ NEW
+12. **Phase 9**: Automated test execution → `test-execution-results/` ⭐ NEW
+13. **Phase 10**: Defect reporting (if failures) → `defect-summary.md` ⭐ NEW
+14. **Phase 11**: Final reporting → `final-test-report.md` + Excel ⭐ NEW
+
+**Final Output**: Creates workflow summary → `logs/00-WORKFLOW-SUMMARY.md`
 
 ## 📁 Project Structure
 
@@ -87,14 +102,22 @@ This project automates the QA testing workflow by:
 QE_MCP_automation/
 ├── .claude/
 │   ├── agents/                    # Agent definitions
-│   │   ├── ado_pbi_fetcher.md
-│   │   ├── md_file_reader.md
-│   │   ├── qa_understanding_doc_creator.md
-│   │   ├── test_scenario_ac_mapper.md
-│   │   ├── qa_test_cases_generator.md
-│   │   ├── ui_test_executor.md
-│   │   ├── db_research_planner.md
-│   │   └── qa_workflow_orchestrator.md
+│   │   ├── ado_pbi_fetcher.md                  # Phase 1: PBI fetch
+│   │   ├── md_file_reader.md                   # Phase 2: Doc reading
+│   │   ├── qa_understanding_doc_creator.md     # Phase 3: QA doc
+│   │   ├── test_scenario_ac_mapper.md          # Phase 4: Scenarios
+│   │   ├── qa_test_cases_generator.md          # Phase 5: Test cases
+│   │   ├── test_data_creator_lite.md           # Phase 6: Test data ⭐ NEW
+│   │   ├── test_case_reviewer.md               # Phase 7: Quality review ⭐ NEW
+│   │   ├── environment_validator.md            # Phase 8: Env validation ⭐ NEW
+│   │   ├── test_execution_coordinator.md       # Phase 9: Test execution ⭐ NEW
+│   │   ├── api_test_executor.md                # Phase 9: API tests ⭐ NEW
+│   │   ├── defect_reporter.md                  # Phase 10: Defect reporting ⭐ NEW
+│   │   ├── test_report_generator.md            # Phase 11: Final reports ⭐ NEW
+│   │   ├── regression_selector.md              # Phase 9: Regression selection ⭐ NEW
+│   │   ├── ui_test_executor.md                 # Legacy/Optional: UI tests
+│   │   ├── db_research_planner.md              # Legacy/Optional: DB tests
+│   │   └── qa_workflow_orchestrator.md         # Main orchestrator
 │   └── skills/qa-workflow.md
 │
 ├── qa_workflow/                   # Shared Python package
@@ -133,22 +156,36 @@ invents its own location.
 
 ```
 outputs/<PBI>/
-├── deliverables/                           ← final, user-facing QA output
-│   ├── QA_Understanding_Document.docx      ← Phase 3
-│   ├── Test-Scenarios-Mapped-to-AC.xlsx    ← Phase 4
-│   ├── Test_Cases_PBI_<PBI>.xlsx           ← Phase 5
-│   ├── ui/                                 ← ONLY when "UI" is selected
+├── deliverables/                                  ← final, user-facing QA output
+│   ├── QA_Understanding_Document.docx             ← Phase 3
+│   ├── Test-Scenarios-Mapped-to-AC.xlsx           ← Phase 4
+│   ├── Test_Cases_PBI_<PBI>.xlsx                  ← Phase 5
+│   ├── test-case-review.md                        ← Phase 7 ⭐ NEW
+│   ├── test-data/                                 ← Phase 6 ⭐ NEW
+│   │   ├── 00-README.md
+│   │   ├── 01-api-payloads.json
+│   │   ├── 02-sample-files/
+│   │   └── 03-test-users.yaml
+│   ├── environment-validation.md                  ← Phase 8 (if executed) ⭐ NEW
+│   ├── test-execution-results/                    ← Phase 9 (if executed) ⭐ NEW
+│   │   ├── api-test-results.json
+│   │   ├── ui-test-results.json
+│   │   └── execution-summary.md
+│   ├── defect-summary.md                          ← Phase 10 (if failures) ⭐ NEW
+│   ├── final-test-report.md                       ← Phase 11 (if executed) ⭐ NEW
+│   ├── final-test-report.xlsx                     ← Phase 11 (if executed) ⭐ NEW
+│   ├── ui/                                        ← ONLY when "UI" is selected (legacy)
 │   │   ├── UI_Test_Execution_Guide.md
 │   │   ├── UI_Test_Results.xlsx
 │   │   └── screenshots/
-│   └── db/                                 ← ONLY when "Database" is selected
+│   └── db/                                        ← ONLY when "Database" is selected (legacy)
 │       ├── DB_Analysis.md
 │       └── db-research-plan.json
-├── working/                                ← intermediate artifacts
-│   ├── pbi-data.json                       ← Phase 1 (ADO data)
-│   ├── user-context.json                   ← Phase 1 (scope contract)
-│   └── integration-docs.json               ← Phase 2
-└── logs/                                   ← phase reports, validation, debug
+├── working/                                       ← intermediate artifacts
+│   ├── pbi-data.json                              ← Phase 1 (ADO data)
+│   ├── user-context.json                          ← Phase 1 (scope contract)
+│   └── integration-docs.json                      ← Phase 2
+└── logs/                                          ← phase reports, validation, debug
     └── 00-WORKFLOW-SUMMARY.md
 ```
 
@@ -220,7 +257,87 @@ Generates detailed test cases.
 **Input**: QA_Understanding_Document.md + Test-Scenarios-Mapped-to-AC.xlsx
 **Output**: `outputs/<PBI>/deliverables/Test_Cases_PBI_<PBI>.xlsx`
 
-### 6. QA Workflow Orchestrator
+### 6. Test Data Creator (Lite) ⭐ NEW
+Generates test data WITHOUT database access - document-driven approach only.
+
+**Input**: Test cases + QA Understanding Document + User context
+**Output**: `outputs/<PBI>/deliverables/test-data/`
+- API payloads (JSON)
+- Sample CSV files
+- Test credentials (YAML)
+- Setup instructions
+
+**Features**:
+- No database queries (compatible with document-driven approach)
+- Generates API request payloads for each test case
+- Creates sample files for upload tests
+- Provides test user credentials and setup guide
+
+### 7. Test Case Reviewer ⭐ NEW
+Performs comprehensive quality review of generated test cases.
+
+**Input**: Test cases + QA doc + Test scenarios
+**Output**: `outputs/<PBI>/deliverables/test-case-review.md`
+
+**Checks**:
+- Completeness, clarity, accuracy
+- Coverage analysis
+- Quality scores
+- Recommendations (APPROVE/REVISE/REJECT)
+
+### 8. Environment Validator ⭐ NEW
+Validates test environment readiness for test execution.
+
+**Input**: Environment name + Test data directory
+**Output**: `outputs/<PBI>/deliverables/environment-validation.md`
+
+**Validates**:
+- Database connectivity
+- API endpoint health
+- Frontend accessibility
+- Authentication setup
+- Status: READY or NOT READY
+
+### 9. Test Execution Coordinator ⭐ NEW
+Executes automated tests (API + UI) and consolidates results.
+
+**Input**: Test cases + Test data + Environment
+**Output**: `outputs/<PBI>/deliverables/test-execution-results/`
+
+**Spawns**:
+- `api-test-executor` for API tests
+- `ui-test-executor` for UI tests
+- Updates Excel with Pass/Fail results
+
+### 10. Defect Reporter ⭐ NEW
+Creates Azure DevOps bugs for failed test cases.
+
+**Input**: Test results + Test cases
+**Output**: `outputs/<PBI>/deliverables/defect-summary.md`
+
+**Features**:
+- Creates ADO bugs for each failure
+- Sets severity based on test priority
+- Links bugs to original PBI
+- Provides bug summary report
+
+### 11. Test Report Generator ⭐ NEW
+Generates comprehensive final test report with metrics and charts.
+
+**Input**: Test results + Defect summary + Test cases
+**Output**: 
+- `outputs/<PBI>/deliverables/final-test-report.md` (technical)
+- `outputs/<PBI>/deliverables/final-test-report.xlsx` (executive)
+
+**Includes**:
+- Executive summary with pass rates
+- Results by category/priority/type
+- ASCII charts (pass/fail distribution)
+- Quality assessment
+- Risk assessment
+- Release readiness sign-off
+
+### 12. QA Workflow Orchestrator
 Coordinates all 5 agents in sequence with 2 user checkpoints.
 
 **How to Run**:
@@ -231,16 +348,31 @@ Coordinates all 5 agents in sequence with 2 user checkpoints.
 **Input**: PBI number (e.g., 643243)
 
 **Output**: Complete deliverables in `outputs/<PBI>/`
+
+**Core Deliverables** (Always Generated):
 - `working/pbi-data.json` - PBI data from Azure DevOps
 - `working/integration-docs.json` - Parsed integration documentation
 - `deliverables/QA_Understanding_Document.docx` - Professional Word document (10 sections)
 - `deliverables/Test-Scenarios-Mapped-to-AC.xlsx` - Scenario mapping
 - `deliverables/Test_Cases_PBI_<PBI>.xlsx` - Azure DevOps import-ready test cases
+- `deliverables/test-data/` - Test data package (API payloads, sample files, credentials) ⭐ NEW
+- `deliverables/test-case-review.md` - Quality review report ⭐ NEW
+
+**Optional Deliverables** (If "Continue" chosen at Checkpoint 3):
+- `deliverables/environment-validation.md` - Environment validation report ⭐ NEW
+- `deliverables/test-execution-results/` - Test execution results ⭐ NEW
+- `deliverables/defect-summary.md` - Defect report (if failures) ⭐ NEW
+- `deliverables/final-test-report.md` - Technical test report ⭐ NEW
+- `deliverables/final-test-report.xlsx` - Executive test report ⭐ NEW
 - `logs/00-WORKFLOW-SUMMARY.md` - Complete workflow report
 
-**Checkpoints**:
-- After Phase 3: Review QA Understanding Document
-- After Phase 4: Review Test Scenario Mapping
+**User Checkpoints**:
+- **CHECKPOINT 1** (After Phase 3): Review QA Understanding Document
+- **CHECKPOINT 2** (After Phase 4): Review Test Scenario Mapping
+- **CHECKPOINT 3** (After Phase 7): Choose execution mode ⭐ NEW
+  - **Stop Here**: Manual QA execution (original behavior)
+  - **Continue**: Automated test execution + reporting
+  - **Cancel**: Stop workflow
 
 ## 📊 Excel Output Format
 

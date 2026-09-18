@@ -538,7 +538,7 @@ written — explicitly, not omitted:
 | `components`         | Yes      | One key per entry in `selected_types` |
 | `documents_provided` | **Yes**  | Boolean; must equal `len(provided_documents) > 0` |
 | `provided_documents` | **Yes**  | Array (possibly empty); every entry validated in Step 2.1d |
-
+ 
 `provided_documents` carries **no test-type labels**. A document is not tagged
 with the types it "belongs to" — scope filtering is driven exclusively by
 `selected_types` in Phase 2. This is deliberate: a per-file type label would be
@@ -1013,9 +1013,372 @@ if this gate is bypassed or broken. That's why it's mechanical, not prompt-level
 
 ---
 
-### Step 8.5: Phase 6 (Optional) - UI Test Execution
+### Step 8.5: Phase 6 - Generate Test Data (NEW)
 
-**Condition**: Execute only if `"UI"` is in `selected_types`
+**Agent**: `test-data-creator-lite`
+
+**Action**:
+```
+Agent({
+  description: "Generate test data for PBI {pbi_number}",
+  prompt: f"Generate test data WITHOUT database queries. Read test cases from "
+          f"outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}.xlsx and "
+          f"QA Understanding Document from outputs/{pbi_number}/deliverables/QA_Understanding_Document.docx and "
+          f"user context from outputs/{pbi_number}/working/user-context.json. "
+          f"Generate API payloads, sample CSV files, test credentials. "
+          f"Save to outputs/{pbi_number}/deliverables/test-data/",
+  subagent_type: "test-data-creator-lite"
+})
+```
+
+**Expected Output**: `outputs/<PBI>/deliverables/test-data/`
+
+**Files Generated**:
+- `00-README.md` - Setup instructions
+- `01-api-payloads.json` - API request payloads
+- `02-sample-files/` - Sample CSV files
+- `03-test-users.yaml` - Test credentials
+
+**Validation**:
+- Directory exists
+- README contains setup instructions
+- API payloads match test cases
+- Sample files are valid
+
+**Success Message**:
+```
+✅ Phase 6 Complete: Test Data Generated
+
+Test Data Package:
+- API Payloads: {api_payload_count}
+- Sample Files: {sample_file_count}
+- Test Users: {test_user_count}
+
+Output: outputs/{pbi_number}/deliverables/test-data/
+
+Ready for test execution
+```
+
+---
+
+### Step 8.6: Phase 7 - Test Case Quality Review (NEW)
+
+**Agent**: `test-case-reviewer`
+
+**Action**:
+```
+Agent({
+  description: "Review test case quality for PBI {pbi_number}",
+  prompt: f"Perform comprehensive quality review of generated test cases. "
+          f"Test Cases File: outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}.xlsx "
+          f"QA Understanding Document: outputs/{pbi_number}/deliverables/QA_Understanding_Document.docx "
+          f"Test Scenarios: outputs/{pbi_number}/deliverables/Test-Scenarios-Mapped-to-AC.xlsx. "
+          f"Review for: completeness, clarity, accuracy, coverage, consistency, quality. "
+          f"Output review report to outputs/{pbi_number}/deliverables/test-case-review.md with "
+          f"findings, coverage analysis, quality scores, and recommendations (APPROVE/REVISE/REJECT).",
+  subagent_type: "test-case-reviewer"
+})
+```
+
+**Expected Output**: `outputs/<PBI>/deliverables/test-case-review.md`
+
+**Validation**:
+- File exists
+- Contains quality scores
+- Contains coverage analysis
+- Contains recommendation (APPROVE/REVISE/REJECT)
+
+**Success Message**:
+```
+✅ Phase 7 Complete: Test Case Quality Review
+
+Quality Score: {quality_score}%
+Coverage: {coverage_percentage}%
+Recommendation: {APPROVE/REVISE/REJECT}
+
+Critical Issues: {critical_count}
+High Issues: {high_count}
+Medium Issues: {medium_count}
+
+Output: outputs/{pbi_number}/deliverables/test-case-review.md
+```
+
+---
+
+### Step 8.7: CHECKPOINT 3 - Choose Execution Mode (NEW)
+
+**Pause for User Input**:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Test cases and test data are ready. How would you like to proceed?",
+    header: "Execution Mode",
+    options: [
+      {
+        label: "Stop Here - Manual QA Execution",
+        description: "Stop workflow after test case generation. QA team will execute tests manually."
+      },
+      {
+        label: "Continue - Automated Test Execution",
+        description: "Continue with automated test execution, defect reporting, and final report generation."
+      },
+      {
+        label: "Cancel Workflow",
+        description: "Stop the workflow. Files saved so far remain in outputs/<PBI>/"
+      }
+    ],
+    multiSelect: false
+  }]
+})
+```
+
+**If "Stop Here"**:
+- Skip to Step 9 (Final Report with partial deliverables)
+- Report completed phases: 1-7
+- Preserve original behavior
+
+**If "Cancel"**:
+- Stop workflow
+- Report partial completion
+- Files saved so far remain
+
+**If "Continue"**:
+- Proceed to Phase 8 (Environment Validation)
+
+---
+
+### Step 8.8: Phase 8 - Environment Validation (NEW - Optional)
+
+**Condition**: Only if user chose "Continue" at CHECKPOINT 3
+
+**Agent**: `environment-validator`
+
+**Action**:
+```
+Agent({
+  description: "Validate test environment for PBI {pbi_number}",
+  prompt: f"Validate that the test environment is ready for test execution. "
+          f"PBI: {pbi_number}, Environment: {environment}, "
+          f"Test Data Directory: outputs/{pbi_number}/deliverables/test-data/. "
+          f"Perform checks: database connectivity, API endpoint health, "
+          f"frontend accessibility, authentication. "
+          f"Output validation report to outputs/{pbi_number}/deliverables/environment-validation.md. "
+          f"Return status: READY or NOT READY",
+  subagent_type: "environment-validator"
+})
+```
+
+**Expected Output**: `outputs/<PBI>/deliverables/environment-validation.md`
+
+**Validation**:
+- File exists
+- Contains validation results
+- Contains status: READY or NOT READY
+
+**If NOT READY**:
+- Display validation errors to user
+- Provide remediation steps
+- Ask user: Fix issues and retry, or stop execution
+- **Do not proceed** to Phase 9 until environment is READY
+
+**If READY**:
+- Display validation summary
+- Proceed to Phase 9
+
+**Success Message**:
+```
+✅ Phase 8 Complete: Environment Validation
+
+Environment Status: READY
+
+Checks Passed:
+- Database connectivity: ✅
+- API endpoint health: ✅
+- Frontend accessibility: ✅
+- Authentication: ✅
+
+Output: outputs/{pbi_number}/deliverables/environment-validation.md
+```
+
+---
+
+### Step 8.9: Phase 9 - Test Execution (NEW - Optional)
+
+**Condition**: Only if user chose "Continue" and environment is READY
+
+**Agent**: `test-execution-coordinator`
+
+**Action**:
+```
+Agent({
+  description: "Execute tests for PBI {pbi_number}",
+  prompt: f"Execute all test cases for PBI {pbi_number}. "
+          f"Test Cases: outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}.xlsx, "
+          f"Test Data: outputs/{pbi_number}/deliverables/test-data/, "
+          f"Environment: {environment}. "
+          f"Spawn api-test-executor for API tests, ui-test-executor for UI tests. "
+          f"Consolidate results, update Excel with actual results and status. "
+          f"Output to: "
+          f"outputs/{pbi_number}/deliverables/test-execution-results/api-test-results.json, "
+          f"outputs/{pbi_number}/deliverables/test-execution-results/ui-test-results.json, "
+          f"outputs/{pbi_number}/deliverables/test-execution-results/execution-summary.md. "
+          f"Return summary: Total tests, Passed, Failed, Blocked",
+  subagent_type: "test-execution-coordinator"
+})
+```
+
+**Expected Output**: 
+- `outputs/<PBI>/deliverables/test-execution-results/api-test-results.json`
+- `outputs/<PBI>/deliverables/test-execution-results/ui-test-results.json`
+- `outputs/<PBI>/deliverables/test-execution-results/execution-summary.md`
+- `outputs/<PBI>/deliverables/Test_Cases_PBI_<PBI>.xlsx` (updated with Pass/Fail)
+
+**Validation**:
+- Result files exist
+- Execution summary contains metrics
+- Excel updated with results
+
+**Success Message**:
+```
+✅ Phase 9 Complete: Test Execution
+
+Total Tests Executed: {total}
+  ✅ PASSED: {passed} ({pass_rate}%)
+  ❌ FAILED: {failed}
+  🚫 BLOCKED: {blocked}
+
+Results by Test Type:
+  API: {api_count} tests ({api_pass_rate}% passed)
+  UI: {ui_count} tests ({ui_pass_rate}% passed)
+
+Output: outputs/{pbi_number}/deliverables/test-execution-results/
+```
+
+---
+
+### Step 8.10: Phase 10 - Defect Reporting (NEW - Optional)
+
+**Condition**: Only if Phase 9 executed and failures exist
+
+**Check for Failures**:
+If no failures (all tests passed):
+- Skip defect reporting
+- Proceed to Phase 11
+
+If failures exist:
+
+**Agent**: `defect-reporter`
+
+**Action**:
+```
+Agent({
+  description: "Report defects for PBI {pbi_number}",
+  prompt: f"Create Azure DevOps bugs for all failed test cases. "
+          f"PBI: {pbi_number}, "
+          f"Test Results: outputs/{pbi_number}/deliverables/test-execution-results/. "
+          f"For each failed test: create ADO bug with title, repro steps, severity, "
+          f"link to original PBI {pbi_number}. "
+          f"Output defect summary to outputs/{pbi_number}/deliverables/defect-summary.md. "
+          f"Return: Bug IDs created",
+  subagent_type: "defect-reporter"
+})
+```
+
+**Expected Output**: `outputs/<PBI>/deliverables/defect-summary.md`
+
+**Validation**:
+- File exists
+- Contains bug IDs created
+- Contains defect statistics
+
+**Success Message**:
+```
+✅ Phase 10 Complete: Defect Reporting
+
+Total Defects Created: {count}
+
+By Severity:
+  🔴 Critical: {critical_count}
+  🟠 High: {high_count}
+  🟡 Medium: {medium_count}
+  🟢 Low: {low_count}
+
+Bugs Created:
+  - Bug #{id1}: {title1}
+  - Bug #{id2}: {title2}
+
+All bugs linked to PBI {pbi_number}
+
+Output: outputs/{pbi_number}/deliverables/defect-summary.md
+```
+
+---
+
+### Step 8.11: Phase 11 - Final Reporting (NEW - Optional)
+
+**Condition**: Only if Phase 9 executed (test execution completed)
+
+**Agent**: `test-report-generator`
+
+**Action**:
+```
+Agent({
+  description: "Generate final report for PBI {pbi_number}",
+  prompt: f"Generate comprehensive test execution report with metrics, charts, "
+          f"and recommendations. "
+          f"Input Files: "
+          f"outputs/{pbi_number}/deliverables/test-execution-results/, "
+          f"outputs/{pbi_number}/deliverables/defect-summary.md (if exists), "
+          f"outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}.xlsx. "
+          f"Generate: executive summary, pass rates, results by category/priority/type, "
+          f"ASCII charts, quality assessment, risk assessment, defect summary, "
+          f"release readiness sign-off, recommendations. "
+          f"Output: "
+          f"outputs/{pbi_number}/deliverables/final-test-report.md, "
+          f"outputs/{pbi_number}/deliverables/final-test-report.xlsx. "
+          f"Return: Pass rate, Release readiness status",
+  subagent_type: "test-report-generator"
+})
+```
+
+**Expected Output**: 
+- `outputs/<PBI>/deliverables/final-test-report.md` (technical report)
+- `outputs/<PBI>/deliverables/final-test-report.xlsx` (executive report)
+
+**Validation**:
+- Files exist
+- Contains pass rate
+- Contains release readiness assessment
+
+**Success Message**:
+```
+✅ Phase 11 Complete: Final Reporting
+
+Test Execution Summary:
+  Total Tests: {total}
+  Pass Rate: {pass_rate}% (Target: ≥ 95%)
+  Critical Pass Rate: {critical_rate}% (Target: 100%)
+
+Quality Assessment: ✅ PASS / ⚠️ PARTIAL / ❌ FAIL
+
+Release Readiness: ✅ READY / ❌ NOT READY
+
+Defects: {count} bugs created
+
+Reports Generated:
+  - Technical: outputs/{pbi_number}/deliverables/final-test-report.md
+  - Executive: outputs/{pbi_number}/deliverables/final-test-report.xlsx
+```
+
+---
+
+### Step 8.12: Phase 6 (Optional) - UI Test Execution (LEGACY)
+
+**NOTE**: This phase is the ORIGINAL Phase 6 - kept for backward compatibility.
+New workflows use Phase 9 (Test Execution Coordinator) instead.
+
+**Condition**: Execute only if `"UI"` is in `selected_types` AND user did NOT choose automated execution
 
 **Agent**: `ui-test-executor`
 
@@ -1158,14 +1521,53 @@ DELIVERABLES
    - {total_steps} test steps
    - Azure DevOps import-ready
 
-{if UI testing:}
+{NEW - Phase 6:}
+🧪 Test Data Package:
+   outputs/{pbi_number}/deliverables/test-data/
+   - API Payloads: {api_payload_count}
+   - Sample Files: {sample_file_count}
+   - Test Users: {test_user_count}
+   - Setup Instructions
+
+{NEW - Phase 7:}
+✅ Test Case Quality Review:
+   outputs/{pbi_number}/deliverables/test-case-review.md
+   - Quality Score: {quality_score}%
+   - Coverage: {coverage_percentage}%
+   - Recommendation: {APPROVE/REVISE/REJECT}
+
+{if automated execution chosen (Phases 8-11):}
+🔍 Environment Validation:
+   outputs/{pbi_number}/deliverables/environment-validation.md
+   - Environment Status: {READY/NOT READY}
+
+📊 Test Execution Results:
+   outputs/{pbi_number}/deliverables/test-execution-results/
+   - API Results: api-test-results.json
+   - UI Results: ui-test-results.json
+   - Execution Summary: execution-summary.md
+   - Pass Rate: {pass_rate}%
+
+{if failures exist:}
+🐛 Defect Summary:
+   outputs/{pbi_number}/deliverables/defect-summary.md
+   - Total Defects: {defect_count}
+   - Critical: {critical_count}
+   - High: {high_count}
+
+📈 Final Reports:
+   outputs/{pbi_number}/deliverables/final-test-report.md (technical)
+   outputs/{pbi_number}/deliverables/final-test-report.xlsx (executive)
+   - Release Readiness: {READY/NOT READY}
+
+{if UI testing (legacy):}
 📱 UI Test Execution:
    outputs/{pbi_number}/deliverables/ui/UI_Test_Execution_Guide.md
    outputs/{pbi_number}/deliverables/ui/screenshots/
    - {ui_test_count} UI test cases
    - {screenshot_count} screenshots required
 
-{if DB testing:}
+{if DB testing (legacy):}
 💾 Database Test Planning:
    outputs/{pbi_number}/deliverables/db/DB_Analysis.md
    - {table_count} tables analyzed
@@ -1359,18 +1761,32 @@ All files saved to: `outputs/<PBI>/`
 Example for PBI 643243:
 ```
 outputs/643243/
-├── deliverables/                           ← final, user-facing QA output
-│   ├── QA_Understanding_Document.docx      ← Phase 3
-│   ├── Test-Scenarios-Mapped-to-AC.xlsx    ← Phase 4
-│   ├── Test_Cases_PBI_643243.xlsx          ← Phase 5
-│   ├── ui/                                 ← ONLY when "UI" selected
-│   └── db/                                 ← ONLY when "Database" selected
-├── working/                                ← intermediate artifacts
-│   ├── pbi-data.json                       ← Phase 1 (ADO data)
-│   ├── user-context.json                   ← Phase 1 (scope contract)
-│   └── integration-docs.json               ← Phase 2
-└── logs/                                   ← phase reports, validation, debug
-    └── 00-WORKFLOW-SUMMARY.md              ← Summary report
+├── deliverables/                                ← final, user-facing QA output
+│   ├── QA_Understanding_Document.docx           ← Phase 3
+│   ├── Test-Scenarios-Mapped-to-AC.xlsx         ← Phase 4
+│   ├── Test_Cases_PBI_643243.xlsx               ← Phase 5
+│   ├── test-case-review.md                      ← Phase 7 (NEW)
+│   ├── test-data/                               ← Phase 6 (NEW)
+│   │   ├── 00-README.md
+│   │   ├── 01-api-payloads.json
+│   │   ├── 02-sample-files/
+│   │   └── 03-test-users.yaml
+│   ├── environment-validation.md                ← Phase 8 (NEW - if executed)
+│   ├── test-execution-results/                  ← Phase 9 (NEW - if executed)
+│   │   ├── api-test-results.json
+│   │   ├── ui-test-results.json
+│   │   └── execution-summary.md
+│   ├── defect-summary.md                        ← Phase 10 (NEW - if failures)
+│   ├── final-test-report.md                     ← Phase 11 (NEW - if executed)
+│   ├── final-test-report.xlsx                   ← Phase 11 (NEW - if executed)
+│   ├── ui/                                      ← ONLY when "UI" selected (legacy)
+│   └── db/                                      ← ONLY when "Database" selected (legacy)
+├── working/                                     ← intermediate artifacts
+│   ├── pbi-data.json                            ← Phase 1 (ADO data)
+│   ├── user-context.json                        ← Phase 1 (scope contract)
+│   └── integration-docs.json                    ← Phase 2
+└── logs/                                        ← phase reports, validation, debug
+    └── 00-WORKFLOW-SUMMARY.md                   ← Summary report
 ```
 
 ---
@@ -1390,13 +1806,31 @@ outputs/643243/
 
 ## Success Criteria
 
+### Mode 1: Test Case Generation Only (Original - Phases 1-7)
+
 Workflow is successful when:
-- [ ] All 5 agents complete successfully
-- [ ] User approves at both checkpoints
-- [ ] All 6 files created in `outputs/<PBI>/`
+- [ ] All 5 core agents complete successfully (Phases 1-5)
+- [ ] User approves at both checkpoints (after QA doc, after scenarios)
+- [ ] Test cases generated and validated (Phase 5)
+- [ ] Test data generated (Phase 6)
+- [ ] Test case quality review completed (Phase 7)
+- [ ] User chooses "Stop Here" at CHECKPOINT 3
+- [ ] All deliverables in `outputs/<PBI>/deliverables/`
 - [ ] Test_Cases.xlsx matches Azure DevOps format
-- [ ] Final report generated
+- [ ] Final report generated with partial deliverables
 - [ ] All AC have test coverage
+
+### Mode 2: Full Lifecycle (Phases 1-11)
+
+All of Mode 1 criteria, plus:
+- [ ] User chooses "Continue" at CHECKPOINT 3
+- [ ] Environment validation passed (Phase 8)
+- [ ] All test cases executed (Phase 9)
+- [ ] Test results recorded (Excel updated with Pass/Fail)
+- [ ] Defects created for failures (Phase 10, if applicable)
+- [ ] Final reports generated (Phase 11)
+- [ ] Release readiness assessment provided
+- [ ] All deliverables in `outputs/<PBI>/deliverables/`
 
 ---
 

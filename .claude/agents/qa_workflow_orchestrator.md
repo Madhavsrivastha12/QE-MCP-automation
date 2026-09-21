@@ -77,7 +77,7 @@ With 2 user checkpoints for review and approval.
 
 ---
 
-## Workflow Diagram
+## Workflow Diagram (COMPLETE)
 
 ```
 User Input: PBI Number (e.g., 643243)
@@ -99,26 +99,64 @@ integration-docs.json (scope-filtered to selected_types + provenance + gaps)
     ↓
 QA_Understanding_Document.docx
     ↓
-[CHECKPOINT 1: User Review]
+[CHECKPOINT 1: User Review & Refine Understanding Document]
     ↓
 [Agent 4: Test Scenario AC Mapper]
     ↓
 Test-Scenarios-Mapped-to-AC.xlsx
     ↓
-[CHECKPOINT 2: User Review]
+[CHECKPOINT 2: User Review & Refine Test Scenarios]
     ↓
-[Agent 5: Test Cases Generator]
+[Agent 5: Test Cases Generator] → Initial Draft
     ↓
-Test_Cases.xlsx
+Test_Cases_PBI_{pbi}_Initial_Draft.xlsx
     ↓
-[Optional: UI Test Executor] (if test_type = UI or Mixed)
+[CHECKPOINT 3: User Review & Refine Initial Draft]
     ↓
-ui-test-execution-guide.md + screenshots/
+[Phase 5a: AUTOMATED UPLOAD TO ADO TEST PLAN] ✅ UPDATED
+    ├─ Step 5a.1: Collect ADO Config (Project, Test Plan ID, Test Suite)
+    ├─ Step 5a.2: Create/Get Test Suite in Test Plan
+    ├─ Step 5a.3: Upload Test Cases to Test Suite
+    ├─ Step 5a.4: Attach QA Understanding Document to PBI ✅ NEW
+    └─ Step 5a.5: Attach Test Scenarios Excel to PBI ✅ NEW
     ↓
-[Optional: DB Test Planner] (if test_type = Database or Mixed)
+ADO Test Cases Created (linked to PBI, in Test Suite)
+QA Understanding Document attached to PBI ✅ NEW
+Test Scenarios attached to PBI ✅ NEW
+ado-test-case-mapping.json saved
+ado-config.json saved
     ↓
-db-analysis.md + db-test-scripts.sql
+[CHECKPOINT 4: Dev MD File (Optional)] ✅ NEW
+    ├─ YES: Provide Dev MD file path
+    │   ↓
+    │   [Phase 5b: Regenerate with Dev MD] ✅ NEW
+    │   ↓
+    │   Test_Cases_PBI_{pbi}_Final_Draft.xlsx
+    │   ↓
+    │   [CHECKPOINT 5: User Review Final Draft] ✅ NEW
+    │   ↓
+    │   [Phase 5c: REPLACE IN ADO] ✅ NEW
+    │   ↓
+    │   ADO Test Cases Updated (Initial → Final)
+    │   ↓
+    └─ NO: Skip to Final Report
     ↓
+[Optional: Test Data Generation] (Phase 6)
+    ↓
+[Optional: Test Case Quality Review] (Phase 7)
+    ↓
+[CHECKPOINT 6: Execution Mode]
+    ├─ Stop Here (Manual QA) → Final Report
+    └─ Continue (Automated)
+        ↓
+        [Environment Validation] (Phase 8)
+        ↓
+        [Test Execution] (Phase 9)
+        ↓
+        [Defect Reporting] (Phase 10 - if failures)
+        ↓
+        [Final Report Generation] (Phase 11)
+        ↓
 [Final Report]
 ```
 
@@ -906,20 +944,20 @@ AskUserQuestion({
 **If "Approve"**:
 - Continue to Phase 5
 
-### Step 8: Phase 5 - Generate Test Cases
+### Step 8: Phase 5 - Generate Initial Test Cases (Initial Draft)
 
 **Agent**: `qa-test-cases-generator`
 
 **Action**:
 ```
 Agent({
-  description: "Generate detailed test cases",
-  prompt: f"Read QA Understanding Document from outputs/{pbi_number}/deliverables/QA_Understanding_Document.docx and Test Scenarios from outputs/{pbi_number}/deliverables/Test-Scenarios-Mapped-to-AC.xlsx. Expand each scenario into detailed test cases with step-by-step instructions matching Azure DevOps test case format. Include: test case ID, title, preconditions, numbered steps with actions and expected results. Format as Excel matching Azure DevOps export structure (first row: metadata, subsequent rows: test steps). Save to outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}.xlsx",
+  description: "Generate initial draft test cases",
+  prompt: f"Read QA Understanding Document from outputs/{pbi_number}/deliverables/QA_Understanding_Document.docx and Test Scenarios from outputs/{pbi_number}/deliverables/Test-Scenarios-Mapped-to-AC.xlsx. Expand each scenario into detailed test cases with step-by-step instructions matching Azure DevOps test case format. Include: test case ID, title, preconditions, numbered steps with actions and expected results. Format as Excel matching Azure DevOps export structure (first row: metadata, subsequent rows: test steps). Save to outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}_Initial_Draft.xlsx",
   subagent_type: "qa-test-cases-generator"
 })
 ```
 
-**Expected Output**: `outputs/<PBI>/deliverables/Test_Cases_PBI_<PBI>.xlsx`
+**Expected Output**: `outputs/<PBI>/deliverables/Test_Cases_PBI_<PBI>_Initial_Draft.xlsx`
 
 **Validation**:
 - File exists
@@ -929,7 +967,7 @@ Agent({
 
 **Success Message**:
 ```
-✅ Phase 5 Complete: Test Cases Generated
+✅ Phase 5 Complete: Initial Test Cases Generated
 
 Test Cases Created: {test_case_count}
 Total Test Steps: {total_steps}
@@ -947,10 +985,484 @@ By Priority:
 - Medium: {med_tc_count}
 - Low: {low_tc_count}
 
-Output: outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}.xlsx
+Output: outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}_Initial_Draft.xlsx
 
-✅ Ready for Azure DevOps import
-✅ Ready for QA execution
+⏳ Next: Review & Refine, then upload to Azure DevOps
+```
+
+---
+
+### Step 8.1: CHECKPOINT 3 - Review Initial Draft Test Cases
+
+**Pause for User Input**:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Review the Initial Draft Test Cases. Are they complete and accurate?",
+    header: "Initial TC Review",
+    options: [
+      {
+        label: "Approve - Upload to Azure DevOps",
+        description: "Test cases are good. Upload initial draft to Azure DevOps Test Plan."
+      },
+      {
+        label: "Request Changes",
+        description: "Test cases need revisions. Specify what needs to be changed."
+      },
+      {
+        label: "Cancel Workflow",
+        description: "Stop the workflow."
+      }
+    ],
+    multiSelect: false
+  }]
+})
+```
+
+**If "Request Changes"**:
+- Pause workflow
+- User manually edits Excel file
+- User confirms when ready to proceed
+
+**If "Cancel"**:
+- Stop workflow
+- Partial deliverables saved
+
+**If "Approve"**:
+- Continue to Phase 5a (ADO Upload)
+
+---
+
+### Step 8.2: Phase 5a - Upload Initial Draft to Azure DevOps Test Plan
+
+**Step 8.2a: Collect Azure DevOps Configuration**
+
+**Pause for User Input**:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Provide Azure DevOps project and Test Plan configuration:",
+    header: "ADO Config",
+    options: [
+      {
+        label: "Provide configuration details",
+        description: "I will provide Project name, Test Plan ID, and optional Test Suite name"
+      },
+      {
+        label: "Skip ADO upload",
+        description: "Skip uploading to Azure DevOps. Keep test cases in Excel only."
+      }
+    ],
+    multiSelect: false
+  }]
+})
+```
+
+**If "Skip ADO upload"**:
+- Skip Phase 5a entirely
+- Continue to CHECKPOINT 4 (Dev MD file question)
+- Test cases remain in local Excel only
+
+**If "Provide configuration details"**:
+
+Ask for the following information:
+
+1. **Project Name**: "What is your Azure DevOps project name? (e.g., 'UsageEmpire', 'MyProject')"
+2. **Test Plan ID**: "What is the Test Plan ID where test cases should be added? (e.g., '12345')"
+3. **Test Suite Name (Optional)**: "What Test Suite name should be created/used for this PBI? (e.g., 'PBI {pbi_number} - {pbi_title}') Leave blank to use default."
+4. **Area Path (Optional)**: "What is the Area Path? (e.g., 'ProjectName\\QA') Leave blank for project default."
+5. **Iteration Path (Optional)**: "What is the Iteration Path? (e.g., 'ProjectName\\Sprint 10') Leave blank for current iteration."
+
+Store in `ado_config`:
+```python
+ado_config = {
+    "project": "{user_provided_project}",
+    "test_plan_id": "{user_provided_plan_id}",
+    "test_suite_name": f"PBI {pbi_number} - {pbi_title}" if not provided else "{user_provided_suite}",
+    "area_path": "{user_provided_area_path}" or f"{project}\\QA",
+    "iteration_path": "{user_provided_iteration}" or f"{project}\\Current"
+}
+
+# Save to working directory
+ado_config_path = paths.working_file("ado-config.json")
+ado_config_path.write_text(json.dumps(ado_config, indent=2), encoding='utf-8')
+```
+
+---
+
+**Step 8.2b: Create Test Suite in Test Plan (if needed)**
+
+**Action**: Create or find the Test Suite for this PBI
+
+```python
+import json
+
+# Load ADO config
+ado_config_path = paths.working_file("ado-config.json")
+ado_config = json.loads(ado_config_path.read_text(encoding='utf-8'))
+
+# Check if Test Suite exists, if not create it
+test_suite_result = mcp__azure-devops__testplan_suite_write({
+    "action": "create_or_get",
+    "project": ado_config["project"],
+    "testPlanId": ado_config["test_plan_id"],
+    "suiteName": ado_config["test_suite_name"],
+    "suiteType": "StaticTestSuite"  # Static suite for manual grouping
+})
+
+test_suite_id = test_suite_result["id"]
+test_suite_url = test_suite_result["url"]
+
+# Update config with suite ID
+ado_config["test_suite_id"] = test_suite_id
+ado_config["test_suite_url"] = test_suite_url
+ado_config_path.write_text(json.dumps(ado_config, indent=2), encoding='utf-8')
+
+print(f"✅ Test Suite Ready: {ado_config['test_suite_name']}")
+print(f"   Suite ID: {test_suite_id}")
+print(f"   URL: {test_suite_url}")
+```
+
+---
+
+**Step 8.2c: Upload Test Cases to Test Plan/Suite**
+
+**Action**: Upload test cases to Azure DevOps using MCP tools
+
+```python
+import openpyxl
+from pathlib import Path
+import json
+
+# Load ADO config
+ado_config = json.loads(paths.working_file("ado-config.json").read_text(encoding='utf-8'))
+
+# Read test cases from Excel
+tc_file = paths.deliverable_file(f"Test_Cases_PBI_{pbi_number}_Initial_Draft.xlsx")
+wb = openpyxl.load_workbook(tc_file)
+ws = wb['Test Cases']
+
+# For each test case in Excel, create in ADO
+created_test_cases = []
+for row_idx in range(2, ws.max_row + 1):  # Skip header
+    # Extract test case metadata
+    tc_title = ws.cell(row_idx, 1).value
+    tc_priority = ws.cell(row_idx, 2).value or 2
+    tc_steps = ws.cell(row_idx, 3).value  # Steps formatted as "1. Step|Expected\n2. Step|Expected"
+    
+    if not tc_title:
+        continue
+    
+    # Create test case work item in ADO
+    result = mcp__azure-devops__testplan_test_case_write({
+        "action": "create",
+        "project": ado_config["project"],
+        "testPlanId": ado_config["test_plan_id"],
+        "testSuiteId": ado_config["test_suite_id"],
+        "title": tc_title,
+        "priority": tc_priority,
+        "areaPath": ado_config["area_path"],
+        "iterationPath": ado_config["iteration_path"],
+        "steps": tc_steps,
+        "relatedWorkItemId": pbi_number,  # Link to PBI as Related Work Item
+        "tags": f"PBI-{pbi_number};AutoGenerated;QA-Workflow"
+    })
+    
+    created_test_cases.append({
+        "title": tc_title,
+        "ado_id": result["id"],
+        "url": result["url"]
+    })
+
+print(f"✅ Created {len(created_test_cases)} test cases in Test Suite {ado_config['test_suite_id']}")
+```
+
+---
+
+**Step 8.2d: Attach QA Understanding Document to PBI**
+
+**Action**: Attach the QA Understanding Document to the PBI work item
+
+```python
+# Get the QA Understanding Document path
+qa_doc_path = paths.qa_understanding_document
+
+# Attach to the PBI work item
+attachment_result = mcp__azure-devops__wit_work_item_attachment({
+    "action": "add",
+    "project": ado_config["project"],
+    "workItemId": pbi_number,
+    "filePath": str(qa_doc_path),
+    "comment": f"QA Understanding Document - Generated by automated QA workflow on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+})
+
+print(f"✅ QA Understanding Document attached to PBI {pbi_number}")
+print(f"   Attachment URL: {attachment_result.get('url', 'N/A')}")
+
+# Optionally attach Test Scenarios Excel to PBI as well
+test_scenarios_path = paths.deliverable_file("Test-Scenarios-Mapped-to-AC.xlsx")
+scenarios_attachment = mcp__azure-devops__wit_work_item_attachment({
+    "action": "add",
+    "project": ado_config["project"],
+    "workItemId": pbi_number,
+    "filePath": str(test_scenarios_path),
+    "comment": f"Test Scenarios mapped to Acceptance Criteria - Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+})
+
+print(f"✅ Test Scenarios Excel attached to PBI {pbi_number}")
+```
+
+---
+
+**Step 8.2e: Save Upload Mapping**
+
+**Action**: Save the mapping between Excel test cases and ADO test case IDs
+
+```python
+# Save mapping file
+mapping_path = paths.working_file("ado-test-case-mapping.json")
+mapping_path.write_text(json.dumps({
+    "pbi_number": pbi_number,
+    "upload_date": datetime.now().isoformat(),
+    "ado_config": ado_config,
+    "test_cases": created_test_cases,
+    "attachments": [
+        {
+            "file": "QA_Understanding_Document.docx",
+            "attached_to": f"PBI {pbi_number}",
+            "attachment_id": attachment_result.get("id")
+        },
+        {
+            "file": "Test-Scenarios-Mapped-to-AC.xlsx",
+            "attached_to": f"PBI {pbi_number}",
+            "attachment_id": scenarios_attachment.get("id")
+        }
+    ]
+}, indent=2), encoding='utf-8')
+
+print(f"✅ Upload mapping saved to {mapping_path}")
+```
+
+---
+
+**Expected Output**: 
+- Test Suite created/found in Test Plan
+- Test cases created in Azure DevOps Test Suite
+- QA Understanding Document attached to PBI
+- Test Scenarios Excel attached to PBI
+- Mapping file: `outputs/<PBI>/working/ado-test-case-mapping.json`
+- ADO config file: `outputs/<PBI>/working/ado-config.json`
+
+**Success Message**:
+```
+✅ Phase 5a Complete: Initial Draft Uploaded to Azure DevOps
+
+Project: {project}
+Test Plan ID: {test_plan_id}
+Test Suite: {test_suite_name} (ID: {test_suite_id})
+Test Suite URL: {test_suite_url}
+
+Test Cases Created in ADO: {count}
+All test cases linked to PBI {pbi_number}
+
+ADO Test Case IDs:
+  - TC {id1}: {title1}
+  - TC {id2}: {title2}
+  - ... ({count} total)
+
+Attachments to PBI {pbi_number}:
+  ✅ QA_Understanding_Document.docx
+  ✅ Test-Scenarios-Mapped-to-AC.xlsx
+
+Mapping saved: outputs/{pbi_number}/working/ado-test-case-mapping.json
+Config saved: outputs/{pbi_number}/working/ado-config.json
+
+⏳ Next: (Optional) Provide Dev MD file for final draft
+```
+
+---
+
+### Step 8.3: CHECKPOINT 4 - Dev MD File Integration (Optional)
+
+**Pause for User Input**:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Do you have a developer-provided documentation (Dev MD file) to incorporate for the final draft of test cases?",
+    header: "Dev MD File",
+    options: [
+      {
+        label: "Yes - Provide Dev MD file",
+        description: "I have developer documentation to add. Will provide the file path."
+      },
+      {
+        label: "No - Skip to completion",
+        description: "No developer documentation available. Workflow complete."
+      }
+    ],
+    multiSelect: false
+  }]
+})
+```
+
+**If "No - Skip to completion"**:
+- Skip to Step 9 (Final Report)
+- Workflow completes here
+
+**If "Yes - Provide Dev MD file"**:
+- Ask for file path:
+  ```
+  "Please provide the path to the developer documentation (MD file):"
+  ```
+- Validate file path (same logic as Step 2.1d)
+- Save path to `outputs/{pbi_number}/working/dev-md-file-path.txt`
+- Continue to Phase 5b
+
+---
+
+### Step 8.3a: Phase 5b - Generate Final Draft Test Cases (with Dev MD)
+
+**Agent**: `qa-test-cases-generator`
+
+**Action**:
+```
+Agent({
+  description: "Generate final draft test cases with Dev MD",
+  prompt: f"Regenerate test cases incorporating developer documentation. "
+          f"Input files: "
+          f"- QA Understanding Document: outputs/{pbi_number}/deliverables/QA_Understanding_Document.docx "
+          f"- Test Scenarios: outputs/{pbi_number}/deliverables/Test-Scenarios-Mapped-to-AC.xlsx "
+          f"- Initial Draft: outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}_Initial_Draft.xlsx "
+          f"- Dev MD file: {dev_md_path} "
+          f"Incorporate technical details from Dev MD file into test cases. "
+          f"Enhance test steps with implementation details, API contract changes, "
+          f"database schema updates from developer documentation. "
+          f"Save to outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}_Final_Draft.xlsx",
+  subagent_type: "qa-test-cases-generator"
+})
+```
+
+**Expected Output**: `outputs/<PBI>/deliverables/Test_Cases_PBI_<PBI>_Final_Draft.xlsx`
+
+**Success Message**:
+```
+✅ Phase 5b Complete: Final Draft Test Cases Generated
+
+Test Cases Updated: {test_case_count}
+Dev MD Incorporated: ✅
+Changes from Initial Draft: {change_count}
+
+Output: outputs/{pbi_number}/deliverables/Test_Cases_PBI_{pbi_number}_Final_Draft.xlsx
+
+⏳ Next: Review & Upload Final Draft to ADO
+```
+
+---
+
+### Step 8.3b: CHECKPOINT 5 - Review Final Draft Test Cases
+
+**Pause for User Input**:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Review the Final Draft Test Cases (with Dev MD incorporated). Are they complete?",
+    header: "Final TC Review",
+    options: [
+      {
+        label: "Approve - Replace in Azure DevOps",
+        description: "Test cases are complete. Replace initial draft in ADO with final version."
+      },
+      {
+        label: "Request Changes",
+        description: "Test cases need revisions."
+      },
+      {
+        label: "Cancel",
+        description: "Stop workflow."
+      }
+    ],
+    multiSelect: false
+  }]
+})
+```
+
+**If "Request Changes"**:
+- User manually edits Excel
+- Ask user when ready
+
+**If "Approve"**:
+- Continue to Phase 5c (Replace in ADO)
+
+---
+
+### Step 8.3c: Phase 5c - Replace Test Cases in Azure DevOps
+
+**Action**: Update existing test cases in ADO with final draft
+
+```python
+import openpyxl
+import json
+from pathlib import Path
+
+# Load ADO mapping from Phase 5a
+mapping_path = paths.working_file("ado-test-case-mapping.json")
+mapping = json.loads(mapping_path.read_text(encoding='utf-8'))
+
+# Read final draft test cases
+final_tc_file = paths.deliverable_file(f"Test_Cases_PBI_{pbi_number}_Final_Draft.xlsx")
+wb = openpyxl.load_workbook(final_tc_file)
+ws = wb['Test Cases']
+
+# Update each test case in ADO
+updated_test_cases = []
+for idx, tc_mapping in enumerate(mapping["test_cases"]):
+    ado_id = tc_mapping["ado_id"]
+    
+    # Get updated steps from final draft Excel (row idx + 2, skip header)
+    row_idx = idx + 2
+    updated_steps = ws.cell(row_idx, 3).value  # Steps column
+    
+    # Update test case steps in ADO
+    result = mcp__azure-devops__testplan_test_case_write({
+        "action": "update_steps",
+        "id": ado_id,
+        "steps": updated_steps
+    })
+    
+    updated_test_cases.append({
+        "ado_id": ado_id,
+        "title": tc_mapping["title"],
+        "status": "updated"
+    })
+
+# Update mapping file
+mapping["final_draft_upload_date"] = datetime.now().isoformat()
+mapping["updated_test_cases"] = updated_test_cases
+mapping_path.write_text(json.dumps(mapping, indent=2), encoding='utf-8')
+```
+
+**Expected Output**:
+- Test cases updated in Azure DevOps
+- Updated mapping file
+
+**Success Message**:
+```
+✅ Phase 5c Complete: Final Draft Uploaded to Azure DevOps
+
+Test Cases Updated in ADO: {count}
+Test Plan: {test_plan_url}
+
+Updated Test Case IDs:
+{list of updated test case IDs}
+
+✅ Initial Draft → Final Draft replacement complete
+✅ All test cases in ADO are now final version
+
+Mapping updated: outputs/{pbi_number}/working/ado-test-case-mapping.json
 ```
 
 ---
@@ -1520,6 +2032,22 @@ DELIVERABLES
    - {test_case_count} detailed test cases
    - {total_steps} test steps
    - Azure DevOps import-ready
+
+{if Phase 5a executed (ADO Upload):}
+🔗 Azure DevOps Integration:
+   Test Plan ID: {test_plan_id}
+   Test Suite: {test_suite_name} (ID: {test_suite_id})
+   Test Suite URL: {test_suite_url}
+   
+   Test Cases Created in ADO: {count}
+   All test cases linked to PBI {pbi_number}
+   
+   Attachments to PBI {pbi_number}:
+   ✅ QA_Understanding_Document.docx
+   ✅ Test-Scenarios-Mapped-to-AC.xlsx
+   
+   Config: outputs/{pbi_number}/working/ado-config.json
+   Mapping: outputs/{pbi_number}/working/ado-test-case-mapping.json
 
 {NEW - Phase 6:}
 🧪 Test Data Package:

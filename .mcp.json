@@ -5,11 +5,14 @@
       "args": [
         "-y",
         "@azure-devops/mcp",
-        "digital-it-apps"
+        "digital-it-apps",
+        "--authentication",
+        "pat",
+        "--domains",
+        "all"
       ],
       "env": {
-        "AZURE_DEVOPS_PAT": "${AZURE_DEVOPS_PAT}",
-        "ADO_DEFAULT_PROJECT": "NRG-Business-CI"
+        "PERSONAL_ACCESS_TOKEN": "${AZURE_DEVOPS_PAT}"
       }
     },
     "usage-empire-dev": {
